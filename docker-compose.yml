@@ -1,0 +1,36 @@
+version: "3.8"
+
+services:
+  # ────────────────────────────────────────────────────────────
+  # Serviço de Mineração
+  # ────────────────────────────────────────────────────────────
+  mineracao:
+    build:
+      context: .
+      dockerfile: Dockerfile.mineracao
+    container_name: lab05-mineracao
+    volumes:
+      # Monta o diretório atual para persistir resultados.csv e estado.json
+      - .:/app
+    environment:
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+    restart: "no"
+    stdin_open: true
+    tty: true
+
+  # ────────────────────────────────────────────────────────────
+  # Serviço de Análise Estatística
+  # ────────────────────────────────────────────────────────────
+  analise:
+    build:
+      context: .
+      dockerfile: Dockerfile.analise
+    container_name: lab05-analise
+    volumes:
+      # Monta o diretório atual para ler resultados.csv
+      - .:/app
+    restart: "no"
+    stdin_open: true
+    tty: true
+    depends_on:
+      - mineracao

@@ -1,0 +1,14 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Instala dependências
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copia scripts e dados
+COPY src/ src/
+COPY data/ data/
+
+# Comando padrão
+CMD ["python", "src/analise.py"]
