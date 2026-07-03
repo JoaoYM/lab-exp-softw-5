@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub API: REST vs GraphQL — Dashboard</title>
+
+    <!-- Chart.js via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js">
+    </script>
+    <!-- Chart.js Regression plugin for trend lines -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-regression@1.2.0/dist/chartjs-plugin-regression.min.js">
+    </script>
+    <!-- PapaParse via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js">
+    </script>
+
+    <style>
+        /* ────────────────────────────────────────────────────────── */
+        /* Reset e Base */
+        /* ────────────────────────────────────────────────────────── */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            color: #1a1a2e;
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        /* ────────────────────────────────────────────────────────── */
+        /* Header */
+        /* ────────────────────────────────────────────────────────── */
+        .header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: #fff;
+            padding: 30px 40px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 1rem;
+            opacity: 0.85;
+        }
+
+        .header .badge {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            margin-top: 10px;
+        }
+
+        /* ────────────────────────────────────────────────────────── */
+        /* Upload Section */
+        /* ────────────────────────────────────────────────────────── */
+        .upload-section {
+            background: #fff;
+            border-radius: 12px;
+            padding: 20px 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .upload-section .upload-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .upload-section h2 {
+            font-size: 1.1rem;
+            color: #16213e;
+            white-space: nowrap;
+        }
+
+        .upload-section input[type="file"] {
+            display: none;
+        }
+
+        .upload-section .file-label {
+            display: inline-block;
+            background: #0f3460;
+            color: #fff;
+            padding: 10px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: background 0.3s;
+        }
+
+        .upload-section .file-label:hover {
+            background: #1a1a2e;
+        }
+
+        .upload-section .file-info {
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .upload-section .file-info.success {
+            color: #2e7d32;
+            font-weight: 600;
+        }
+
+        .upload-section .file-info.error {
+            color: #c62828;
+            font-weight: 600;
+        }
+
+        /* ────────────────────────────────────────────────────────── */
+        /* Language Filter Buttons */
+        /* ────────────────────────────────────────────────────────── */
+        .filter-bar {
+            background: #fff;
+            border-radius: 12px;
+            padding: 15px 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .filter-bar .filter-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #555;
+            margin-right: 5px;
+        }
+
+        .filter-bar .btn-filter {
+            padding: 8px 18px;
+            border: 2px solid #e0e0e0;
+            border-radius: 20px;
+            background: #fff;
+            color: #555;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s;
+        }
+
+        .filter-bar .btn-filter:hover {
+            border-color: #0f3460;
+            color: #0f3460;
+            background: #f0f4ff;
+        }
+
+        .filter-bar .btn-filter.active {
+            background: #0f3460;
+            color: #fff;
+            border-color: #0f3460;
+        }
+
+        /* ────────────────────────────────────────────────────────── */
+        /* KPI Cards */
+        /* ────────────────────────────────────────────────────────── */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .kpi-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 18px 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            text-align: center;
+            transition: transform 0.2s;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .kpi-card .kpi-icon {
+            font-size: 1.6rem;
+            margin-bottom: 6px;
+        }
+
+        .kpi-card .kpi-value {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #0f3460;
+        }
+
+        .kpi-card .kpi-label {
+            font-size: 0.75rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 2px;
+        }
+
+        .kpi-card .kpi-sub {
+            font-size: 0.75rem;
+            color: #aaa;
+            margin-top: 4px;
+        }
+
+        .kpi-card.highlight {
+            border-left: 4px solid #0f3460;
+        }
+
+        .kpi-card.highlight-green {
+            border-left: 4px solid #2e7d32;
+        }
+
+        .kpi-card.highlight-red {
+            border-left: 4px solid #c62828;
+        }
+
+        /* ────────────────────────────────────────────────────────── */
+        /* Charts Grid */
+        /* ────────────────────────────────────────────────────────── */
+        .charts {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 1000px) {
+            .charts {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+        }
+
+        .chart-card.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .chart-card h3 {
+            font-size: 1.05rem;
+            color: #16213e;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #f0f2f5;
+        }
+
+        .chart-card .chart-container {
+            position: relative;
+            height: 320px;
+        }
+
+        .chart-card .chart-container.tall {
+            height: 400px;
+        }
+
+        /* ────────────────────────────────────────────────────────── */
+        /* Tabela de Dados */
+        /* ────────────────────────────────────────────────────────── */
+        .table-section {
+            background: #fff;
+            border-radius: 12px;
+            padding: 20px 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            overflow-x: auto;
+            margin-bottom: 20px;
+        }
+
+        .table-section h3 {
+            font-size: 1.05rem;
+            color: #16213e;
+            margin-bottom: 12px;
+        }
+
+        .table-section table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+        }
+
+        .table-section th {
+            background: #f0f2f5;
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #555;
+            white-space: nowrap;
+        }
+
+        .table-section td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #f0f2f5;
+        }
+
+        .table-section tr:hover {
+            background: #f8f9fa;
+        }
+
+        .table-section .tech-badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
+
+        .tech-badge.rest {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .tech-badge.graphql {
+            background: #fce4ec;
+            color: #c62828;
+        }
+
+        /* ────────────────────────────────────────────────────────── */
+        /* Footer */
+        /* ────────────────────────────────────────────────────────── */
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #888;
+            font-size: 0.85rem;
+        }
+
+        .footer a {
+            color: #0f3460;
+            text-decoration: none;
+        }
+
+        /* ────────────────────────────────────────────────────────── */
+        /* Loading */
+        /* ────────────────────────────────────────────────────────── */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .loading .spinner {
+            border: 4px solid #f0f2f5;
+            border-top: 4px solid #0f3460;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* ────────────────────────────────────────────────────────── */
+        /* Empty State */
+        /* ────────────────────────────────────────────────────────── */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #aaa;
+        }
+
+        .empty-state .empty-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .empty-state p {
+            font-size: 1.1rem;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ─── Header ─────────────────────────────────────────────── -->
+    <div class="header">
+        <h1>🔬 GitHub API: REST (v3) vs GraphQL (v4)</h1>
+        <p>Análise Comparativa de Eficiência — Laboratório 05</p>
+        <span class="badge">📊 Dashboard Interativo</span>
+    </div>
+
+    <!-- ─── Upload ─────────────────────────────────────────────── -->
+    <div class="upload-section">
+        <div class="upload-left">
+            <h2>📂 Dados</h2>
+            <label for="csvFile" class="file-label">
+                📄 Carregar resultados.csv
+            </label>
+            <input type="file" id="csvFile" accept=".csv">
+        </div>
+        <div id="fileInfo" class="file-info">
+            Nenhum arquivo carregado.
+        </div>
+    </div>
+
+    <!-- ─── Loading ────────────────────────────────────────────── -->
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <p>Processando dados...</p>
+    </div>
+
+    <!-- ─── Dashboard (inicialmente oculto) ────────────────────── -->
+    <div id="dashboard" class="hidden">
+
+        <!-- Language Filter Buttons -->
+        <div class="filter-bar" id="filterBar">
+            <span class="filter-label">🌐 Linguagem:</span>
+            <button class="btn-filter active" data-linguagem="todas">Geral</button>
+        </div>
+
+        <!-- KPI Cards -->
+        <div class="kpi-grid" id="kpiGrid">
+            <div class="kpi-card highlight">
+                <div class="kpi-icon">📦</div>
+                <div class="kpi-value" id="kpiRepos">0</div>
+                <div class="kpi-label">Repositórios</div>
+            </div>
+            <div class="kpi-card highlight">
+                <div class="kpi-icon">📊</div>
+                <div class="kpi-value" id="kpiAmostras">0</div>
+                <div class="kpi-label">Amostras</div>
+                <div class="kpi-sub" id="kpiAmostrasDetalhe">REST 0 / GraphQL 0</div>
+            </div>
+            <div class="kpi-card highlight-green">
+                <div class="kpi-icon">⏱️</div>
+                <div class="kpi-value" id="kpiTempoMedio">0</div>
+                <div class="kpi-label">Tempo Médio (ms)</div>
+                <div class="kpi-sub" id="kpiTempoDetalhe">REST 0 / GraphQL 0</div>
+            </div>
+            <div class="kpi-card highlight-red">
+                <div class="kpi-icon">📦</div>
+                <div class="kpi-value" id="kpiTamanhoMedio">0</div>
+                <div class="kpi-label">Tamanho Médio (bytes)</div>
+                <div class="kpi-sub" id="kpiTamanhoDetalhe">REST 0 / GraphQL 0</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-icon">🏆</div>
+                <div class="kpi-value" id="kpiMaisRapida">—</div>
+                <div class="kpi-label">Linguagem + Rápida</div>
+                <div class="kpi-sub" id="kpiMaisRapidaDetalhe">GraphQL</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts">
+            <!-- Bar Chart: Tempo -->
+            <div class="chart-card">
+                <h3>⏱️ RQ1: Tempo Médio de Resposta (ms)</h3>
+                <div class="chart-container">
+                    <canvas id="chartTempo"></canvas>
+                </div>
+            </div>
+
+            <!-- Bar Chart: Tamanho -->
+            <div class="chart-card">
+                <h3>📦 RQ2: Tamanho Médio do Payload (bytes)</h3>
+                <div class="chart-container">
+                    <canvas id="chartTamanho"></canvas>
+                </div>
+            </div>
+
+            <!-- Scatter Plot -->
+            <div class="chart-card full-width">
+                <h3>🔵 Dispersão: Tamanho (bytes) × Tempo (ms)</h3>
+                <div class="chart-container tall">
+                    <canvas id="chartScatter"></canvas>
+                </div>
+            </div>
+
+            <!-- Line Chart: Variância do Tempo -->
+            <div class="chart-card full-width">
+                <h3>📈 Variância do Tempo de Resposta ao Longo dos Repositórios</h3>
+                <div class="chart-container">
+                    <canvas id="chartLine"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabela -->
+        <div class="table-section">
+            <h3>📋 Dados Detalhados</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tecnologia</th>
+                        <th>Repositório</th>
+                        <th>Linguagem</th>
+                        <th>Tempo (ms)</th>
+                        <th>Tamanho (bytes)</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ─── Empty State ────────────────────────────────────────── -->
+    <div id="emptyState" class="empty-state">
+        <div class="empty-icon">📂</div>
+        <p>Carregue o arquivo <strong>resultados.csv</strong> para visualizar o dashboard.</p>
+    </div>
+
+    <!-- ─── Footer ─────────────────────────────────────────────── -->
+    <div class="footer">
+        <p>Laboratório 05 — Engenharia de Software Experimental</p>
+    </div>
+
+    <!-- ─── JavaScript ─────────────────────────────────────────── -->
+    <script>
+        // ──────────────────────────────────────────────────────────
+        // Estado Global
+        // ──────────────────────────────────────────────────────────
+        let dadosCompletos = [];
+        let dadosFiltrados = [];
+        let linguagemAtiva = 'todas';
+
+        // Chart instances
+        let chartTempo = null;
+        let chartTamanho = null;
+        let chartScatter = null;
+        let chartLine = null;
+
+        // ──────────────────────────────────────────────────────────
+        // Cores
+        // ──────────────────────────────────────────────────────────
+        const CORES = {
+            REST: {
+                background: 'rgba(21, 101, 192, 0.7)',
+                border: 'rgba(21, 101, 192, 1)',
+                backgroundHover: 'rgba(21, 101, 192, 0.9)',
+                point: 'rgba(21, 101, 192, 0.8)',
+            },
+            GraphQL: {
+                background: 'rgba(198, 40, 40, 0.7)',
+                border: 'rgba(198, 40, 40, 1)',
+                backgroundHover: 'rgba(198, 40, 40, 0.9)',
+                point: 'rgba(198, 40, 40, 0.8)',
+            }
+        };
+
+        const CORES_LINGUAGENS = {
+            'JavaScript': '#f7df1e',
+            'Python': '#3572A5',
+            'TypeScript': '#3178c6',
+            'Go': '#00ADD8',
+            'Java': '#b07219',
+            'C#': '#178600',
+        };
+
+        // ──────────────────────────────────────────────────────────
+        // Elementos DOM
+        // ──────────────────────────────────────────────────────────
+        const csvInput = document.getElementById('csvFile');
+        const fileInfo = document.getElementById('fileInfo');
+        const loading = document.getElementById('loading');
+        const dashboard = document.getElementById('dashboard');
+        const emptyState = document.getElementById('emptyState');
+        const filterBar = document.getElementById('filterBar');
+        const tableBody = document.getElementById('tableBody');
+
+        // KPI elements
+        const kpiRepos = document.getElementById('kpiRepos');
+        const kpiAmostras = document.getElementById('kpiAmostras');
+        const kpiAmostrasDetalhe = document.getElementById('kpiAmostrasDetalhe');
+        const kpiTempoMedio = document.getElementById('kpiTempoMedio');
+        const kpiTempoDetalhe = document.getElementById('kpiTempoDetalhe');
+        const kpiTamanhoMedio = document.getElementById('kpiTamanhoMedio');
+        const kpiTamanhoDetalhe = document.getElementById('kpiTamanhoDetalhe');
+        const kpiMaisRapida = document.getElementById('kpiMaisRapida');
+        const kpiMaisRapidaDetalhe = document.getElementById('kpiMaisRapidaDetalhe');
+
+        // ──────────────────────────────────────────────────────────
+        // Funções de Processamento
+        // ──────────────────────────────────────────────────────────
+
+        function processarDados(dados) {
+            dadosCompletos = dados;
+            popularFiltros();
+            aplicarFiltro('todas');
+            mostrarDashboard();
+        }
+
+        function popularFiltros() {
+            const linguagens = [...new Set(dadosCompletos.map(r => r.linguagem))].sort();
+            filterBar.innerHTML = '<span class="filter-label">🌐 Linguagem:</span>';
+
+            // Botão "Geral"
+            const btnGeral = document.createElement('button');
+            btnGeral.className = 'btn-filter active';
+            btnGeral.dataset.linguagem = 'todas';
+            btnGeral.textContent = 'Geral';
+            btnGeral.addEventListener('click', () => aplicarFiltro('todas'));
+            filterBar.appendChild(btnGeral);
+
+            // Botões para cada linguagem
+            linguagens.forEach(l => {
+                const btn = document.createElement('button');
+                btn.className = 'btn-filter';
+                btn.dataset.linguagem = l;
+                btn.textContent = l;
+                btn.addEventListener('click', () => aplicarFiltro(l));
+                filterBar.appendChild(btn);
+            });
+        }
+
+        function aplicarFiltro(linguagem) {
+            linguagemAtiva = linguagem;
+
+            // Atualiza botões
+            document.querySelectorAll('.btn-filter').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.linguagem === linguagem);
+            });
+
+            // Filtra dados
+            if (linguagem === 'todas') {
+                dadosFiltrados = dadosCompletos;
+            } else {
+                dadosFiltrados = dadosCompletos.filter(r => r.linguagem === linguagem);
+            }
+
+            atualizarKPIs();
+            atualizarGraficos();
+            atualizarTabela();
+        }
+
+        // ──────────────────────────────────────────────────────────
+        // KPI Updates
+        // ──────────────────────────────────────────────────────────
+
+        function atualizarKPIs() {
+            const amostras = dadosFiltrados.length;
+            const repos = new Set(dadosFiltrados.map(r => r.repositorio)).size;
+            const linguagens = new Set(dadosFiltrados.map(r => r.linguagem)).size;
+
+            const dadosRest = dadosFiltrados.filter(r => r.tecnologia === 'REST');
+            const dadosGraphql = dadosFiltrados.filter(r => r.tecnologia === 'GraphQL');
+
+            const mediaTempoRest = dadosRest.length > 0
+                ? dadosRest.reduce((s, r) => s + parseFloat(r.tempo_ms), 0) / dadosRest.length
+                : 0;
+            const mediaTempoGraphql = dadosGraphql.length > 0
+                ? dadosGraphql.reduce((s, r) => s + parseFloat(r.tempo_ms), 0) / dadosGraphql.length
+                : 0;
+            const mediaTamanhoRest = dadosRest.length > 0
+                ? dadosRest.reduce((s, r) => s + parseInt(r.tamanho_bytes), 0) / dadosRest.length
+                : 0;
+            const mediaTamanhoGraphql = dadosGraphql.length > 0
+                ? dadosGraphql.reduce((s, r) => s + parseInt(r.tamanho_bytes), 0) / dadosGraphql.length
+                : 0;
+
+            const mediaTempoTotal = amostras > 0
+                ? dadosFiltrados.reduce((s, r) => s + parseFloat(r.tempo_ms), 0) / amostras
+                : 0;
+            const mediaTamanhoTotal = amostras > 0
+                ? dadosFiltrados.reduce((s, r) => s + parseInt(r.tamanho_bytes), 0) / amostras
+                : 0;
+
+            // KPI: Repositórios
+            kpiRepos.textContent = repos;
+
+            // KPI: Amostras
+            kpiAmostras.textContent = amostras;
+            kpiAmostrasDetalhe.textContent = `REST ${dadosRest.length} / GraphQL ${dadosGraphql.length}`;
+
+            // KPI: Tempo Médio
+            kpiTempoMedio.textContent = mediaTempoTotal.toFixed(0);
+            kpiTempoDetalhe.textContent = `REST ${mediaTempoRest.toFixed(0)} / GraphQL ${mediaTempoGraphql.toFixed(0)}`;
+
+            // KPI: Tamanho Médio
+            kpiTamanhoMedio.textContent = mediaTamanhoTotal.toFixed(0);
+            kpiTamanhoDetalhe.textContent = `REST ${mediaTamanhoRest.toFixed(0)} / GraphQL ${mediaTamanhoGraphql.toFixed(0)}`;
+
+            // KPI: Linguagem mais rápida (GraphQL)
+            // Agrupa tempo médio por linguagem para GraphQL
+            const linguagensList = [...new Set(dadosFiltrados.map(r => r.linguagem))];
+            let menorTempoGraphql = Infinity;
+            let linguagemMaisRapida = '—';
+            linguagensList.forEach(l => {
+                const dadosLing = dadosFiltrados.filter(r => r.linguagem === l && r.tecnologia === 'GraphQL');
+                if (dadosLing.length > 0) {
+                    const media = dadosLing.reduce((s, r) => s + parseFloat(r.tempo_ms), 0) / dadosLing.length;
+                    if (media < menorTempoGraphql) {
+                        menorTempoGraphql = media;
+                        linguagemMaisRapida = l;
+                    }
+                }
+            });
+            kpiMaisRapida.textContent = linguagemMaisRapida;
+            kpiMaisRapidaDetalhe.textContent = `${menorTempoGraphql.toFixed(0)} ms (GraphQL)`;
+        }
+
+        // ──────────────────────────────────────────────────────────
+        // Gráficos
+        // ──────────────────────────────────────────────────────────
+
+        function atualizarGraficos() {
+            const linguagens = [...new Set(dadosFiltrados.map(r => r.linguagem))].sort();
+
+            // Agrupa médias por linguagem + tecnologia
+            const grupos = {};
+            dadosFiltrados.forEach(row => {
+                const key = `${row.linguagem}|${row.tecnologia}`;
+                if (!grupos[key]) {
+                    grupos[key] = { somaTempo: 0, somaTamanho: 0, count: 0 };
+                }
+                grupos[key].somaTempo += parseFloat(row.tempo_ms);
+                grupos[key].somaTamanho += parseInt(row.tamanho_bytes);
+                grupos[key].count += 1;
+            });
+
+            const tempoRest = linguagens.map(l => {
+                const k = `${l}|REST`;
+                return grupos[k] ? (grupos[k].somaTempo / grupos[k].count) : 0;
+            });
+            const tempoGraphql = linguagens.map(l => {
+                const k = `${l}|GraphQL`;
+                return grupos[k] ? (grupos[k].somaTempo / grupos[k].count) : 0;
+            });
+            const tamanhoRest = linguagens.map(l => {
+                const k = `${l}|REST`;
+                return grupos[k] ? (grupos[k].somaTamanho / grupos[k].count) : 0;
+            });
+            const tamanhoGraphql = linguagens.map(l => {
+                const k = `${l}|GraphQL`;
+                return grupos[k] ? (grupos[k].somaTamanho / grupos[k].count) : 0;
+            });
+
+            // ── Gráfico de Barras: Tempo ──────────────────────
+            const ctxTempo = document.getElementById('chartTempo').getContext('2d');
+            if (chartTempo) chartTempo.destroy();
+            chartTempo = new Chart(ctxTempo, {
+                type: 'bar',
+                data: {
+                    labels: linguagens,
+                    datasets: [
+                        {
+                            label: 'REST (v3)',
+                            data: tempoRest,
+                            backgroundColor: CORES.REST.background,
+                            borderColor: CORES.REST.border,
+                            borderWidth: 2,
+                            borderRadius: 4,
+                        },
+                        {
+                            label: 'GraphQL (v4)',
+                            data: tempoGraphql,
+                            backgroundColor: CORES.GraphQL.background,
+                            borderColor: CORES.GraphQL.border,
+                            borderWidth: 2,
+                            borderRadius: 4,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { font: { size: 11, weight: '600' }, padding: 15 } },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)} ms`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Tempo Médio (ms)', font: { size: 11, weight: '600' } },
+                            grid: { color: 'rgba(0,0,0,0.06)' },
+                        },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+
+            // ── Gráfico de Barras: Tamanho ────────────────────
+            const ctxTamanho = document.getElementById('chartTamanho').getContext('2d');
+            if (chartTamanho) chartTamanho.destroy();
+            chartTamanho = new Chart(ctxTamanho, {
+                type: 'bar',
+                data: {
+                    labels: linguagens,
+                    datasets: [
+                        {
+                            label: 'REST (v3)',
+                            data: tamanhoRest,
+                            backgroundColor: CORES.REST.background,
+                            borderColor: CORES.REST.border,
+                            borderWidth: 2,
+                            borderRadius: 4,
+                        },
+                        {
+                            label: 'GraphQL (v4)',
+                            data: tamanhoGraphql,
+                            backgroundColor: CORES.GraphQL.background,
+                            borderColor: CORES.GraphQL.border,
+                            borderWidth: 2,
+                            borderRadius: 4,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { font: { size: 11, weight: '600' }, padding: 15 } },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => {
+                                    const v = ctx.parsed.y;
+                                    if (v >= 1024 * 1024) return `${ctx.dataset.label}: ${(v / (1024 * 1024)).toFixed(2)} MB`;
+                                    if (v >= 1024) return `${ctx.dataset.label}: ${(v / 1024).toFixed(2)} KB`;
+                                    return `${ctx.dataset.label}: ${v.toFixed(0)} bytes`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Tamanho Médio (bytes)', font: { size: 11, weight: '600' } },
+                            grid: { color: 'rgba(0,0,0,0.06)' },
+                        },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+
+            // ── Scatter Plot ──────────────────────────────────
+            const scatterDataRest = dadosFiltrados
+                .filter(r => r.tecnologia === 'REST')
+                .map(r => ({
+                    x: parseInt(r.tamanho_bytes),
+                    y: parseFloat(r.tempo_ms),
+                    repositorio: r.repositorio,
+                    linguagem: r.linguagem,
+                }));
+            const scatterDataGraphql = dadosFiltrados
+                .filter(r => r.tecnologia === 'GraphQL')
+                .map(r => ({
+                    x: parseInt(r.tamanho_bytes),
+                    y: parseFloat(r.tempo_ms),
+                    repositorio: r.repositorio,
+                    linguagem: r.linguagem,
+                }));
+
+            const ctxScatter = document.getElementById('chartScatter').getContext('2d');
+            if (chartScatter) chartScatter.destroy();
+            chartScatter = new Chart(ctxScatter, {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        {
+                            label: 'REST (v3)',
+                            data: scatterDataRest,
+                            backgroundColor: CORES.REST.point,
+                            borderColor: CORES.REST.border,
+                            pointRadius: 6,
+                            pointHoverRadius: 9,
+                        },
+                        {
+                            label: 'GraphQL (v4)',
+                            data: scatterDataGraphql,
+                            backgroundColor: CORES.GraphQL.point,
+                            borderColor: CORES.GraphQL.border,
+                            pointRadius: 6,
+                            pointHoverRadius: 9,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { font: { size: 11, weight: '600' }, padding: 15 } },
+                        tooltip: {
+                            callbacks: {
+                                title: items => items[0].raw.repositorio,
+                                label: ctx => {
+                                    const r = ctx.raw;
+                                    return [
+                                        `${ctx.dataset.label}`,
+                                        `  Linguagem: ${r.linguagem}`,
+                                        `  Tamanho: ${r.x.toLocaleString()} bytes`,
+                                        `  Tempo: ${r.y.toFixed(2)} ms`,
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            position: 'bottom',
+                            title: { display: true, text: 'Tamanho (bytes)', font: { size: 11, weight: '600' } },
+                            grid: { color: 'rgba(0,0,0,0.06)' },
+                            ticks: {
+                                callback: v => {
+                                    if (v >= 1024 * 1024) return (v / (1024 * 1024)).toFixed(1) + ' MB';
+                                    if (v >= 1024) return (v / 1024).toFixed(1) + ' KB';
+                                    return v;
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Tempo (ms)', font: { size: 11, weight: '600' } },
+                            grid: { color: 'rgba(0,0,0,0.06)' },
+                        }
+                    }
+                }
+            });
+
+            // ── Line Chart: Variância do Tempo ────────────────
+            // Ordena repositórios por tempo (REST) para visualizar variância
+            const reposUnicos = [...new Set(dadosFiltrados.map(r => r.repositorio))].sort();
+
+            const lineDataRest = reposUnicos.map(repo => {
+                const row = dadosFiltrados.find(r => r.repositorio === repo && r.tecnologia === 'REST');
+                return row ? parseFloat(row.tempo_ms) : null;
+            }).filter(v => v !== null);
+
+            const lineDataGraphql = reposUnicos.map(repo => {
+                const row = dadosFiltrados.find(r => r.repositorio === repo && r.tecnologia === 'GraphQL');
+                return row ? parseFloat(row.tempo_ms) : null;
+            }).filter(v => v !== null);
+
+            // Labels: índices dos repositórios
+            const lineLabels = reposUnicos.map((_, i) => `#${i + 1}`);
+
+            const ctxLine = document.getElementById('chartLine').getContext('2d');
+            if (chartLine) chartLine.destroy();
+            chartLine = new Chart(ctxLine, {
+                type: 'line',
+                data: {
+                    labels: lineLabels,
+                    datasets: [
+                        {
+                            label: 'REST (v3)',
+                            data: lineDataRest,
+                            borderColor: CORES.REST.border,
+                            backgroundColor: 'rgba(21, 101, 192, 0.08)',
+                            fill: true,
+                            tension: 0.3,
+                            pointRadius: 3,
+                            pointHoverRadius: 6,
+                            borderWidth: 2,
+                        },
+                        {
+                            label: 'GraphQL (v4)',
+                            data: lineDataGraphql,
+                            borderColor: CORES.GraphQL.border,
+                            backgroundColor: 'rgba(198, 40, 40, 0.08)',
+                            fill: true,
+                            tension: 0.3,
+                            pointRadius: 3,
+                            pointHoverRadius: 6,
+                            borderWidth: 2,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { font: { size: 11, weight: '600' }, padding: 15 } },
+                        tooltip: {
+                            callbacks: {
+                                afterTitle: items => {
+                                    const idx = items[0].dataIndex;
+                                    return `Repositório: ${reposUnicos[idx] || 'Desconhecido'}`;
+                                },
+                                label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)} ms`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Tempo (ms)', font: { size: 11, weight: '600' } },
+                            grid: { color: 'rgba(0,0,0,0.06)' },
+                        },
+                        x: {
+                            title: { display: true, text: 'Repositórios (ordenados)', font: { size: 11, weight: '600' } },
+                            grid: { display: false },
+                        }
+                    }
+                }
+            });
+        }
+
+        // ──────────────────────────────────────────────────────────
+        // Tabela
+        // ──────────────────────────────────────────────────────────
+
+        function atualizarTabela() {
+            const maxLinhas = 200;
+            const linhas = dadosFiltrados.slice(0, maxLinhas);
+            tableBody.innerHTML = '';
+
+            linhas.forEach(row => {
+                const tr = document.createElement('tr');
+                const techClass = row.tecnologia === 'REST' ? 'rest' : 'graphql';
+                tr.innerHTML = `
+                    <td><span class="tech-badge ${techClass}">${row.tecnologia}</span></td>
+                    <td>${row.repositorio}</td>
+                    <td>${row.linguagem}</td>
+                    <td>${parseFloat(row.tempo_ms).toFixed(2)}</td>
+                    <td>${parseInt(row.tamanho_bytes).toLocaleString()}</td>
+                `;
+                tableBody.appendChild(tr);
+            });
+
+            if (dadosFiltrados.length > maxLinhas) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td colspan="5" style="text-align:center; color:#888; font-style:italic;">
+                        Mostrando ${maxLinhas} de ${dadosFiltrados.length} linhas
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            }
+        }
+
+        // ──────────────────────────────────────────────────────────
+        // UI Helpers
+        // ──────────────────────────────────────────────────────────
+
+        function mostrarDashboard() {
+            emptyState.classList.add('hidden');
+            dashboard.classList.remove('hidden');
+        }
+
+        // ──────────────────────────────────────────────────────────
+        // Event Listeners
+        // ──────────────────────────────────────────────────────────
+
+        csvInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (!file.name.endsWith('.csv')) {
+                fileInfo.textContent = '❌ Erro: Selecione um arquivo .csv';
+                fileInfo.className = 'file-info error';
+                return;
+            }
+
+            fileInfo.textContent = `📄 Carregando: ${file.name}...`;
+            fileInfo.className = 'file-info';
+            loading.classList.add('active');
+
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                dynamicTyping: true,
+                complete: function(results) {
+                    loading.classList.remove('active');
+
+                    if (results.errors.length > 0) {
+                        fileInfo.textContent = `⚠️ Arquivo carregado com ${results.errors.length} avisos.`;
+                        fileInfo.className = 'file-info error';
+                    }
+
+                    const dados = results.data;
+
+                    const colunasEsperadas = ['tecnologia', 'repositorio', 'linguagem', 'tempo_ms', 'tamanho_bytes'];
+                    const colunasPresentes = Object.keys(dados[0] || {});
+                    const colunasFaltando = colunasEsperadas.filter(c => !colunasPresentes.includes(c));
+
+                    if (colunasFaltando.length > 0) {
+                        fileInfo.textContent =
+                            `❌ Erro: Colunas faltando: ${colunasFaltando.join(', ')}. ` +
+                            `Esperadas: ${colunasEsperadas.join(', ')}`;
+                        fileInfo.className = 'file-info error';
+                        return;
+                    }
+
+                    if (dados.length === 0) {
+                        fileInfo.textContent = '❌ Erro: CSV vazio.';
+                        fileInfo.className = 'file-info error';
+                        return;
+                    }
+
+                    fileInfo.textContent = `✅ ${dados.length} registros carregados de ${file.name}`;
+                    fileInfo.className = 'file-info success';
+
+                    processarDados(dados);
+                },
+                error: function(error) {
+                    loading.classList.remove('active');
+                    fileInfo.textContent = `❌ Erro ao ler arquivo: ${error.message}`;
+                    fileInfo.className = 'file-info error';
+                }
+            });
+        });
+
+        // ──────────────────────────────────────────────────────────
+        // Inicialização
+        // ──────────────────────────────────────────────────────────
+        console.log('📊 Dashboard GitHub REST vs GraphQL carregado.');
+        console.log('📂 Carregue o arquivo resultados.csv para começar.');
+    </script>
+
+</body>
+</html>
